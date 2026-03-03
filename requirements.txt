@@ -1,0 +1,7 @@
+streamlit
+geopandas
+folium
+streamlit-folium
+pystac_client
+rasterio
+matplotlib
