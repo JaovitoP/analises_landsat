@@ -103,7 +103,7 @@ def plot_pre_pos(rgb_pre, rgb_pos):
 
 
 def plot_ndvi(ndvi_pre, ndvi_pos):
-    fig, axes = plt.subplots(1, 2, figsize=(14, 7))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 12))
     
     ndvi_pre_plot = axes[0].imshow(ndvi_pre, cmap="RdYlGn", vmin=-0.2, vmax=0.65, interpolation='nearest')
     axes[0].axis("off")

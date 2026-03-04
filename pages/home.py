@@ -2,14 +2,21 @@
 import streamlit as st
 import os
 from datetime import datetime
-
+import tempfile
+import zipfile
+import pandas as pd
+from utils.aoi import *
 from utils.catalog import *
 from utils.indices import *
 from utils.raster import *
 from utils.visualization import *
 from components.header import header
+import requests
 
 header()
+
+#todo: gerar índices espectrais das imagens
+#todo: ao invés de carregar de uma vez, carrega os png e exibe aos poucoas
 
 with st.container(border=True):
 
@@ -73,14 +80,13 @@ with st.container(border=True):
         labels = [opt["label"] for opt in options]
 
         scene_dir = "./output/vrt"
-        path = "path"
 
         BANDAS = ["swir22", "nir08", "red"]
 
         if st.button('Gerar Thumbnails'):
-            jpg_files = []
-
             with st.status('Gerando arquivos Vrt...', expanded=True) as status:
+                jpg_files = []
+
                 try:
                     for it in items:
                         sat = it.id.split("_")[0]
@@ -103,17 +109,17 @@ with st.container(border=True):
                     status.write(f"❌ Erro: {e}")
                     status.update(label="Erro no processamento", state="error")
 
-            if jpg_files:
-                st.subheader("Thumbnails Geradas")
+                if jpg_files:
+                    st.subheader("Thumbnails Geradas")
 
-                num_cols = 5
-                cols = st.columns(num_cols)
+                    num_cols = 5
+                    cols = st.columns(num_cols)
 
-                for idx, jpg in enumerate(jpg_files):
-                    col = cols[idx % num_cols]
-                    with col:
-                        st.image(jpg, use_container_width=True, caption=f"Thumbnail: {os.path.basename(jpg)}")
-
+                    for idx, jpg in enumerate(jpg_files):
+                        col = cols[idx % num_cols]
+                        with col:
+                            st.image(jpg, use_container_width=True, caption=f"Thumbnail: {os.path.basename(jpg)}")
+            
         select_img_cols = st.columns(2)
 
         with select_img_cols[0]:
@@ -139,12 +145,70 @@ with st.container(border=True):
             with st.container(border=True):
                 st.title('Índices Espectrais')
 
-                if st.button('Gerar Índices Espectrais'):
+            if st.button('Gerar Índices Espectrais'):
+                with st.status('Processando imagens...', expanded=True) as status:
+                    try:
+                        status.write("🔎 Lendo bandas da imagem pré-fogo...")
 
-                    with st.status('Processando imagens...', expanded=True) as status:
+                        ds = rasterio.open(img_pre.assets['red'].href)  # Banda 4 (Vermelha)
+                        b04_pre, b04_pre_transf = read(img_pre.assets['red'].href)  # Banda 4 (Vermelha)
+                        b05_pre, b05_pre_transf = read(img_pre.assets['nir08'].href)  # Banda 5 (NIR)
+                        b06_pre, b06_pre_transf = read(img_pre.assets['swir16'].href)  # Banda 6 (SWIR1)
+                        b07_pre, b07_pre_transf = read(img_pre.assets['swir22'].href)  # Banda 7 (SWIR2)
+
+                        status.write("🔄 Reprojetando bandas para 20m...")
+
+                        b04_pre = transforme_20m(b04_pre, b04_pre_transf, ds.crs)
+                        b05_pre = transforme_20m(b05_pre, b05_pre_transf, ds.crs)
+                        b06_pre = transforme_20m(b06_pre, b06_pre_transf, ds.crs)
+                        b07_pre = transforme_20m(b07_pre, b07_pre_transf, ds.crs)
+
+                        status.write("🔥 Lendo bandas da imagem pós-fogo...")
+
+                        b04_pos, b04_pos_transf = read(img_pos.assets['red'].href)  # Banda 4 (Vermelha)
+                        b05_pos, b05_pos_transf = read(img_pos.assets['nir08'].href)  # Banda 5 (NIR)
+                        b06_pos, b06_pos_transf = read(img_pos.assets['swir16'].href)  # Banda 6 (SWIR1)
+                        b07_pos, b07_pos_transf = read(img_pos.assets['swir22'].href)  # Banda 7 (SWIR2)
+
+                        status.write("🔄 Reprojetando pós-fogo...")
+                        b04_pos = transforme_20m(b04_pos, b04_pos_transf, ds.crs)
+                        b05_pos = transforme_20m(b05_pos, b05_pos_transf, ds.crs)
+                        b06_pos = transforme_20m(b06_pos, b06_pos_transf, ds.crs)
+                        b07_pos = transforme_20m(b07_pos, b07_pos_transf, ds.crs)
+
+                        status.write("📊 Calculando índices espectrais...")
                         
-                        try:
-                            status.write("🔎 Lendo bandas da imagem pré-fogo...")
-                        except Exception as e:
-                            status.write(f"❌ Erro: {e}")
-                            status.update(label="Erro no processamento", state="error")
+                        ndvi_pre = ndvi(b05_pre, b04_pre)
+                        nbr_pre = nbr(b05_pre, b07_pre)
+                        nbrswir_pre = nbrswir(b06_pre, b07_pre)
+
+                        ndvi_pos = ndvi(b05_pos, b04_pos)
+                        nbr_pos = nbr(b05_pos, b07_pos)
+                        nbrswir_pos = nbrswir(b06_pos, b07_pos)
+
+                        ndvi_dif = ndvi_pre - ndvi_pos
+                        nbr_dif = nbr_pre - nbr_pos
+                        nbrswir_dif = nbrswir_pre - nbrswir_pos
+
+                        status.update(label="✅ Processamento concluído!", state="complete")
+                    except Exception as e:
+                        status.write(f"❌ Erro: {e}")
+                        status.update(label="Erro no processamento", state="error")
+
+                    indices = [
+                        ("NDVI", lambda: plot_ndvi(ndvi_pre, ndvi_pos)),
+                        ("NBR", lambda: plot_nbr(nbr_pre, nbr_pos)),
+                        ("NBRSWIR", lambda: plot_nbrswir(nbrswir_pre, nbrswir_pos)),
+                        ("Diferença entre índices", lambda: plot_difference_between_indices(ndvi_dif, nbr_dif, nbrswir_dif))
+                    ]
+
+                    num_cols = 2
+
+                    for i in range(0, len(indices), num_cols):
+                        cols = st.columns(num_cols)
+
+                        for col, (titulo, plot_func) in zip(cols, indices[i:i+num_cols]):
+                            with col:
+                                st.subheader(titulo)
+                                with st.spinner(f'Gerando {titulo}...'):
+                                    plot_func()

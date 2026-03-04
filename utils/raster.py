@@ -11,7 +11,6 @@ from rasterio.crs import CRS
 from rasterio.windows import from_bounds
 from rasterio.warp import Resampling, reproject, transform
 
-
 def transforme_20m (asset, transforme, crs):
     '''Reamostragem de dados de 20 para 10 mts'''
 
@@ -21,7 +20,7 @@ def transforme_20m (asset, transforme, crs):
     array_20 = np.zeros((int(asset.shape[0]/2), int(asset.shape[1]/2)), dtype=asset.dtype)
 
     reproject(
-        source=asset.data, 
+        source=asset, 
         destination=array_20,
         src_transform=transforme,
         src_crs=crs,
@@ -33,25 +32,9 @@ def transforme_20m (asset, transforme, crs):
     )
     return array_20
 
-
-def read(uri: str, bbox: list, masked: bool = True, crs: str = None):
-    source_crs = CRS.from_string('EPSG:4326')
-    
-    if crs:
-        source_crs = CRS.from_string(crs)
-
-    w, s, e, n = bbox
-        
+def read(uri):
     with rasterio.open(uri) as dataset:
-        transformer = transform(source_crs, dataset.crs, [w, e], [s, n])
-        window = from_bounds(transformer[0][0], transformer[1][0], 
-                             transformer[0][1], transformer[1][1], dataset.transform)
-        
-        box_trasform = rasterio.transform.from_bounds(transformer[0][0], transformer[1][0],
-                                                      transformer[0][1], transformer[1][1], window.width, window.height)
-        
-        return dataset.read(1, window=window, masked=masked)*0.0001, box_trasform
-
+        return dataset.read(1)*0.0001, dataset.transform
 
 def save_rgb_in_geotiff_format(crs, transform, *args):
     os.makedirs('./output', exist_ok=True)
