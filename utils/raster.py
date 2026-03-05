@@ -32,10 +32,45 @@ def transforme_20m (asset, transforme, crs):
     )
     return array_20
 
-def read(uri):
-    with rasterio.open(uri) as dataset:
-        return dataset.read(1)*0.0001, dataset.transform
+def read(uri: str, bbox: list | None = None, masked: bool = True, crs: str = None):
 
+    source_crs = CRS.from_string('EPSG:4326')
+    
+    if crs:
+        source_crs = CRS.from_string(crs)
+
+    with rasterio.open(uri) as dataset:
+
+        if bbox is None:
+            data = dataset.read(1, masked=masked) * 0.0001
+            transform_out = dataset.transform
+            return data, transform_out
+
+        w, s, e, n = bbox
+
+        transformer = transform(source_crs, dataset.crs, [w, e], [s, n])
+
+        window = from_bounds(
+            transformer[0][0],
+            transformer[1][0],
+            transformer[0][1],
+            transformer[1][1],
+            dataset.transform
+        )
+
+        box_transform = rasterio.transform.from_bounds(
+            transformer[0][0],
+            transformer[1][0],
+            transformer[0][1],
+            transformer[1][1],
+            window.width,
+            window.height
+        )
+
+        data = dataset.read(1, window=window, masked=masked) * 0.0001
+
+        return data, box_transform
+    
 def save_rgb_in_geotiff_format(crs, transform, *args):
     os.makedirs('./output', exist_ok=True)
     

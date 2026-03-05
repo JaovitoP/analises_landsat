@@ -93,8 +93,6 @@ def plot_pre_pos(rgb_pre, rgb_pos):
     axes[0].imshow((rgb_pre * 255).astype(np.uint8), interpolation='nearest')
     axes[0].set_title("Pré-Fogo", fontsize=14, fontweight="bold")
     axes[1].set_title("Pós-Fogo", fontsize=14, fontweight="bold")
-
-
     axes[1].axis('off')
     axes[1].imshow((rgb_pos * 255).astype(np.uint8), interpolation='nearest')
 
@@ -103,7 +101,7 @@ def plot_pre_pos(rgb_pre, rgb_pos):
 
 
 def plot_ndvi(ndvi_pre, ndvi_pos):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 12))
+    fig, axes = plt.subplots(1, 2, figsize=(14, 7))
     
     ndvi_pre_plot = axes[0].imshow(ndvi_pre, cmap="RdYlGn", vmin=-0.2, vmax=0.65, interpolation='nearest')
     axes[0].axis("off")

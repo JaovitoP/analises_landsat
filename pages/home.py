@@ -2,8 +2,6 @@
 import streamlit as st
 import os
 from datetime import datetime
-import tempfile
-import zipfile
 import pandas as pd
 from utils.aoi import *
 from utils.catalog import *
@@ -11,12 +9,8 @@ from utils.indices import *
 from utils.raster import *
 from utils.visualization import *
 from components.header import header
-import requests
 
 header()
-
-#todo: gerar índices espectrais das imagens
-#todo: ao invés de carregar de uma vez, carrega os png e exibe aos poucoas
 
 with st.container(border=True):
 
@@ -156,25 +150,12 @@ with st.container(border=True):
                         b06_pre, b06_pre_transf = read(img_pre.assets['swir16'].href)  # Banda 6 (SWIR1)
                         b07_pre, b07_pre_transf = read(img_pre.assets['swir22'].href)  # Banda 7 (SWIR2)
 
-                        status.write("🔄 Reprojetando bandas para 20m...")
-
-                        b04_pre = transforme_20m(b04_pre, b04_pre_transf, ds.crs)
-                        b05_pre = transforme_20m(b05_pre, b05_pre_transf, ds.crs)
-                        b06_pre = transforme_20m(b06_pre, b06_pre_transf, ds.crs)
-                        b07_pre = transforme_20m(b07_pre, b07_pre_transf, ds.crs)
-
                         status.write("🔥 Lendo bandas da imagem pós-fogo...")
 
                         b04_pos, b04_pos_transf = read(img_pos.assets['red'].href)  # Banda 4 (Vermelha)
                         b05_pos, b05_pos_transf = read(img_pos.assets['nir08'].href)  # Banda 5 (NIR)
                         b06_pos, b06_pos_transf = read(img_pos.assets['swir16'].href)  # Banda 6 (SWIR1)
                         b07_pos, b07_pos_transf = read(img_pos.assets['swir22'].href)  # Banda 7 (SWIR2)
-
-                        status.write("🔄 Reprojetando pós-fogo...")
-                        b04_pos = transforme_20m(b04_pos, b04_pos_transf, ds.crs)
-                        b05_pos = transforme_20m(b05_pos, b05_pos_transf, ds.crs)
-                        b06_pos = transforme_20m(b06_pos, b06_pos_transf, ds.crs)
-                        b07_pos = transforme_20m(b07_pos, b07_pos_transf, ds.crs)
 
                         status.write("📊 Calculando índices espectrais...")
                         
@@ -190,7 +171,6 @@ with st.container(border=True):
                         nbr_dif = nbr_pre - nbr_pos
                         nbrswir_dif = nbrswir_pre - nbrswir_pos
 
-                        status.update(label="✅ Processamento concluído!", state="complete")
                     except Exception as e:
                         status.write(f"❌ Erro: {e}")
                         status.update(label="Erro no processamento", state="error")
@@ -212,3 +192,4 @@ with st.container(border=True):
                                 st.subheader(titulo)
                                 with st.spinner(f'Gerando {titulo}...'):
                                     plot_func()
+                    status.update(label="✅ Processamento concluído!", state="complete")
